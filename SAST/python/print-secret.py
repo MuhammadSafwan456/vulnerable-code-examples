@@ -2,7 +2,7 @@ import os
 
 def insecure_function(secret):
     print("Received secret: " + secret)
-    print("Received secret: " + secret)vul
+    print("Received secret: " + secret)
 
 user_input = "sensitivesecret"
 insecure_function(user_input)
