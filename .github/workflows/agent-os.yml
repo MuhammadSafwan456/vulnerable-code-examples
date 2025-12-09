@@ -96,3 +96,105 @@ jobs:
         name: code-review-reports-${{ github.run_number }}
         path: .agent-os/reviews/
         retention-days: 90
+    
+    # Comment on PR with full report
+    - name: Comment on PR with Report
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+      env:
+        REVIEW_TYPE: ${{ github.event.inputs.review_type || 'audit' }}
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Determine report file name based on review type
+          const reviewType = process.env.REVIEW_TYPE || 'audit';
+          const reportFileName = `${reviewType}-report.md`;
+          const reportPath = `.agent-os/reviews/${reportFileName}`;
+          
+          let reportContent = '';
+          let reportExists = false;
+          
+          // Try to read the report file
+          if (fs.existsSync(reportPath)) {
+            reportContent = fs.readFileSync(reportPath, 'utf8');
+            reportExists = true;
+            console.log(`✅ Found report: ${reportPath}`);
+          } else {
+            // Fallback: try other possible report names
+            const fallbackPaths = [
+              '.agent-os/reviews/review-report.md',
+              '.agent-os/reviews/audit-report.md',
+              '.agent-os/reviews/security-report.md'
+            ];
+            
+            for (const fallbackPath of fallbackPaths) {
+              if (fs.existsSync(fallbackPath)) {
+                reportContent = fs.readFileSync(fallbackPath, 'utf8');
+                reportExists = true;
+                console.log(`✅ Found report: ${fallbackPath}`);
+                break;
+              }
+            }
+          }
+          
+          if (!reportExists) {
+            console.log('⚠️  No report file found. Checking directory contents...');
+            const reviewsDir = '.agent-os/reviews/';
+            if (fs.existsSync(reviewsDir)) {
+              const files = fs.readdirSync(reviewsDir);
+              console.log(`Files in reviews directory: ${files.join(', ')}`);
+            }
+            reportContent = '## Code Review Report
+
+Review completed successfully. Please check the artifacts for detailed reports.';
+          }
+          
+          // Get metrics if available
+          let metrics = {};
+          const metricsPath = '.agent-os/reviews/metrics.json';
+          if (fs.existsSync(metricsPath)) {
+            try {
+              metrics = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
+            } catch (e) {
+              console.log('Could not parse metrics.json');
+            }
+          }
+          
+          // Create PR comment with full report
+          const findings = metrics.findings || {};
+          const blockers = (findings.critical || 0) + (findings.high || 0);
+          const suggestions = (findings.medium || 0) + (findings.low || 0);
+          const cost = metrics.cost_usd || '0.00';
+          const filesAnalyzed = metrics.files_reviewed || 0;
+          const duration = metrics.duration_seconds || 0;
+          
+          const comment = `## 🔍 Agent-OS Code Review Report
+          
+${reportContent}
+
+---
+
+### 📊 Summary
+- **Files Analyzed:** ${filesAnalyzed}
+- **Merge Blockers:** ${blockers} (Critical/High severity)
+- **Suggestions:** ${suggestions} (Medium/Low severity)
+- **Duration:** ${Math.round(duration)}s
+- **Cost:** $${cost}
+
+📁 **Detailed reports available in artifacts:** code-review-reports-${context.runNumber}`;
+          
+          // Post comment
+          try {
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+            console.log('✅ PR comment posted successfully');
+          } catch (error) {
+            console.error('❌ Failed to post PR comment:', error);
+            throw error;
+          }
