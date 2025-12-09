@@ -85,8 +85,6 @@ jobs:
         cost-limit: ${{ github.event_name == 'pull_request' && '0.25' || '1.0' }}
         # Organization-level secrets - automatically available to all repos
         anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-        slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
-        notify-on: 'on-blockers'  # Send Slack notification only when blockers are found
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
