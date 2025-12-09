@@ -110,8 +110,8 @@ jobs:
           
           // Determine report file name based on review type
           const reviewType = process.env.REVIEW_TYPE || 'audit';
-          const reportFileName = `${reviewType}-report.md`;
-          const reportPath = `.agent-os/reviews/${reportFileName}`;
+          const reportFileName = reviewType + '-report.md';
+          const reportPath = '.agent-os/reviews/' + reportFileName;
           
           let reportContent = '';
           let reportExists = false;
@@ -120,7 +120,7 @@ jobs:
           if (fs.existsSync(reportPath)) {
             reportContent = fs.readFileSync(reportPath, 'utf8');
             reportExists = true;
-            console.log(`✅ Found report: ${reportPath}`);
+            console.log('✅ Found report: ' + reportPath);
           } else {
             // Fallback: try other possible report names
             const fallbackPaths = [
@@ -133,7 +133,7 @@ jobs:
               if (fs.existsSync(fallbackPath)) {
                 reportContent = fs.readFileSync(fallbackPath, 'utf8');
                 reportExists = true;
-                console.log(`✅ Found report: ${fallbackPath}`);
+                console.log('✅ Found report: ' + fallbackPath);
                 break;
               }
             }
@@ -144,7 +144,7 @@ jobs:
             const reviewsDir = '.agent-os/reviews/';
             if (fs.existsSync(reviewsDir)) {
               const files = fs.readdirSync(reviewsDir);
-              console.log(`Files in reviews directory: ${files.join(', ')}`);
+              console.log('Files in reviews directory: ' + files.join(', '));
             }
             reportContent = '## Code Review Report
 
@@ -170,20 +170,23 @@ Review completed successfully. Please check the artifacts for detailed reports.'
           const filesAnalyzed = metrics.files_reviewed || 0;
           const duration = metrics.duration_seconds || 0;
           
-          const comment = `## 🔍 Agent-OS Code Review Report
-          
-${reportContent}
-
----
-
-### 📊 Summary
-- **Files Analyzed:** ${filesAnalyzed}
-- **Merge Blockers:** ${blockers} (Critical/High severity)
-- **Suggestions:** ${suggestions} (Medium/Low severity)
-- **Duration:** ${Math.round(duration)}s
-- **Cost:** $${cost}
-
-📁 **Detailed reports available in artifacts:** code-review-reports-${context.runNumber}`;
+          const comment = [
+            '## 🔍 Agent-OS Code Review Report',
+            '',
+            reportContent,
+            '',
+            '---',
+            '',
+            '### 📊 Summary',
+            '- **Files Analyzed:** ' + filesAnalyzed,
+            '- **Merge Blockers:** ' + blockers + ' (Critical/High severity)',
+            '- **Suggestions:** ' + suggestions + ' (Medium/Low severity)',
+            '- **Duration:** ' + Math.round(duration) + 's',
+            '- **Cost:** $' + cost,
+            '',
+            '📁 **Detailed reports available in artifacts:** code-review-reports-' + context.runNumber
+          ].join('
+');
           
           // Post comment
           try {
